@@ -1,0 +1,11 @@
+extends layout.pug
+
+block content
+    form(role='form', action="/register",method="post", id='register',style='max-width: 300px;')
+        input(name="username" type = "text" placeholder="username")
+        br
+        input(name="name" type = "text" placeholder="name")
+        br
+        input(name="password" type = "password" placeholder="password")
+        br
+        button(type="submit") Submit

@@ -1,0 +1,11 @@
+extends layout.pug
+
+block content
+    .container
+        .row
+            .col-md-6.col-md-offset-3
+                form(role='form', action="/login",method="post", id='register',style='max-width: 300px;')
+                    input(name="username" type = "text" placeholder="username")
+                    br
+                    input(name="password" type = "password" placeholder="password")
+                    button(type="submit") Submit

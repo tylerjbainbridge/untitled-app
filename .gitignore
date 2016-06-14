@@ -1,0 +1,4 @@
+.env
+./test/test-images/
+./test/test-images/test.jpg
+output.jpg
