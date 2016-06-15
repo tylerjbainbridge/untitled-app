@@ -56,15 +56,15 @@ router.get('/loggedin', function (req, res) {
  * ACCOUNT
  */
 
+router.post('/register', AccountController.createAccount);
+
+router.post('/login', AccountController.login);
+
 router.get('/u/:username', AccountController.getUserProfile);
 
 router.get('/u/:username/i', AccountController.getUserImages);
 
 router.get('/feed', AccountController.getUserFeed);
-
-router.post('/register', AccountController.createAccount);
-
-router.post('/login', AccountController.login);
 
 router.post('/newFit', AccountController.newFit);
 

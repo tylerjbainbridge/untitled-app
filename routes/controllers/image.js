@@ -31,7 +31,6 @@ exports.getImage = (req, res) => {
     })
 };
 
-
 exports.uploadImage = (req, res)=>{
 
     var processCont = new MainController();

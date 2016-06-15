@@ -2,8 +2,11 @@
 
 const express = require('express'),
     passport = require('passport'),
+    _ = require('lodash'),
     Account = require.main.require('./models/account'),
     Image = require.main.require('./models/image'),
+    Comment = require.main.require('./models/comment'),
+    moment = require('moment'),
     validator = require('validator');
 
 exports.getUserProfile = (req, res)=>{
@@ -43,14 +46,42 @@ exports.getUserProfile = (req, res)=>{
 };
 
 exports.getUserFeed = (req, res) => {
-    let query = {
-        $in: {user_id: req.user.following}
-    };
+    let pageLength = 5;
+
+    /**
+     * First retrieve all the images from the user's req.user follows.
+     * Second sort them in all in descending order based on createdAt date.
+     * Third only return the first $pageLength images.
+     */
 
     Image.aggregate([
-        {$find: query}
-    ], (err, docs) => {
-        res.send(docs);
+        {$match: { user_id: { $in: req.user.following}}},
+        {$sort: {createdAt: -1}},
+        {$limit: pageLength}
+    ], (err, imgs) => {
+        let image_ids = [];
+
+        _.forEach(imgs, (img)=>{
+            image_ids.push(img.short_id);
+        });
+
+        Comment.find({image_id: {$in: image_ids}}, (err, cmts)=>{
+            let comments = {};
+            _.forEach(cmts, (cmt)=>{
+                let newCmt = cmt;
+                newCmt['fromNow'] = moment(cmt.createdAt).fromNow();
+
+                //TODO: FIGURE OUT WHY THIS DOESNT WORK
+
+                comments[cmt.image_id] ?
+                    comments[cmt.image_id].push(newCmt) :
+                    comments[cmt.image_id] = [newCmt];
+            });
+            res.send({
+                images: imgs,
+                comments: comments
+            });
+        });
     })
 };
 

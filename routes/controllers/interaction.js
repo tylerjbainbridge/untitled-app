@@ -1,21 +1,21 @@
 'use strict';
 
-const   express = require('express'),
-        passport = require('passport'),
-        Account = require.main.require('./models/account'),
-        Image = require.main.require('./models/image'),
-        validator = require('validator'),
-        Comment = require.main.require('./models/comment');
+const express = require('express'),
+    passport = require('passport'),
+    Account = require.main.require('./models/account'),
+    Image = require.main.require('./models/image'),
+    validator = require('validator'),
+    Comment = require.main.require('./models/comment');
 
-exports.likeImage = (req, res)=>{
+exports.likeImage = (req, res)=> {
     var image_id = req.params.img_short;
     var user_id = req.user._id;
 
     console.log(`${req.user.username} liked: ${image_id}`);
 
     /*var query = {
-        _id: image_id
-    };*/
+     _id: image_id
+     };*/
 
     let query = {
         short_id: image_id
@@ -29,43 +29,43 @@ exports.likeImage = (req, res)=>{
         'new': true
     };
 
-    Image.findOneAndUpdate(query, action, upsert, (err, img)=>{
-        if(err){
+    Image.findOneAndUpdate(query, action, upsert, (err, img)=> {
+        if (err) {
             res.sendStatus(err);
-        }else if(img){
+        } else if (img) {
 
-            if(!req.user.brands)
+            if (!req.user.brands)
                 req.user.brands = {};
 
-            if(!req.user.styles)
+            if (!req.user.styles)
                 req.user.styles = {};
 
-            img.brands.forEach((brand)=>{
+            img.brands.forEach((brand)=> {
                 req.user.brands[brand] ? req.user.brands[brand]++ : req.user.brands[brand] = 1;
             });
 
-            img.styles.forEach((style)=>{
+            img.styles.forEach((style)=> {
                 req.user.styles[style] ? req.user.styles[style]++ : req.user.styles[style] = 1;
             });
 
             req.user.markModified('styles');
             req.user.markModified('brands');
 
-            req.user.save((err)=>{
-                if(!err){
+            req.user.save((err)=> {
+                if (!err) {
                     res.send(`success: ${img}`);
-                }else{
+                } else {
                     res.send(err);
                 }
             })
 
-        }else{
+        } else {
             res.send(500);
         }
     });
 };
 
-exports.unLikeImage = (req, res)=>{
+exports.unLikeImage = (req, res)=> {
     let image_id = req.params.img_short;
     let user_id = req.user._id;
 
@@ -83,44 +83,44 @@ exports.unLikeImage = (req, res)=>{
         'new': true
     };
 
-    Image.findOneAndUpdate(query, action, upsert, (err, img)=>{
-        if(err){
+    Image.findOneAndUpdate(query, action, upsert, (err, img)=> {
+        if (err) {
             res.sendStatus(err);
-        }else if(img){
-            if(img.liked_by.indexOf(user_id) < 0){
-                if(!req.user.brands)
+        } else if (img) {
+            if (img.liked_by.indexOf(user_id) < 0) {
+                if (!req.user.brands)
                     res.send('error.');
 
-                img.brands.forEach((brand)=>{
-                    if(req.user.brands[brand] > 0)
+                img.brands.forEach((brand)=> {
+                    if (req.user.brands[brand] > 0)
                         req.user.brands[brand]--;
                 });
 
-                img.styles.forEach((style)=>{
-                    if(req.user.styles[style] > 0)
+                img.styles.forEach((style)=> {
+                    if (req.user.styles[style] > 0)
                         req.user.styles[style]--;
                 });
 
                 req.user.markModified('brands');
                 req.user.markModified('styles');
 
-                req.user.save((err)=>{
-                    if(!err){
+                req.user.save((err)=> {
+                    if (!err) {
                         res.send(`success: ${img}`);
-                    }else{
+                    } else {
                         res.send(err);
                     }
                 })
-            }else{
+            } else {
                 res.send(`tried to like twice: ${img}`);
             }
-        }else{
+        } else {
             res.send(500);
         }
     });
 };
 
-exports.comment = (req, res) =>{
+exports.comment = (req, res) => {
     let body = req.body.comment;
     let image_id = req.params.img_short;
     let username = req.user.username;
@@ -133,25 +133,25 @@ exports.comment = (req, res) =>{
             body: body
         },
         (err, cmt) => {
-            if (err){
+            if (err) {
                 res.send(err);
-            }else{
+            } else {
                 res.send(cmt)
             }
         })
 };
 
-exports.deleteComment = (req, res) =>{
+exports.deleteComment = (req, res) => {
     let query = {
-      _id: req.params.comment_id
+        _id: req.params.comment_id
     };
 
     Comment.findOne(query).remove((err) => {
-       if(err){
-           res.send(err)
-       }else{
-           res.send(200);
-       }
+        if (err) {
+            res.send(err)
+        } else {
+            res.send(200);
+        }
     });
 };
 
@@ -171,19 +171,19 @@ exports.follow = (req, res) => {
     };
 
     Account.findOneAndUpdate(query, action, upsert, (err, usr) => {
-       if(err){
-           return res.send(err);
-       }else{
+        if (err) {
+            return res.send(err);
+        } else {
 
-           if(req.user.following.indexOf(usr._id) < 0)
+            if (req.user.following.indexOf(usr._id) < 0)
                 req.user.following.push(usr._id);
-           req.user.save((err)=>{
-               if(err){
-                   return res.send(err);
-               }else{
-                   res.send(usr);
-               }
-           });
+            req.user.save((err)=> {
+                if (err) {
+                    return res.send(err);
+                } else {
+                    res.send(usr);
+                }
+            });
 
         }
     });
@@ -205,15 +205,15 @@ exports.unfollow = (req, res) => {
     };
 
     Account.findOneAndUpdate(query, action, upsert, (err, usr) => {
-        if(err){
+        if (err) {
             return res.send(err);
-        }else{
+        } else {
             req.user.following.pull(usr._id);
 
-            req.user.save((err)=>{
-                if(err){
+            req.user.save((err)=> {
+                if (err) {
                     return res.send(err);
-                }else{
+                } else {
                     res.send(usr);
                 }
             });

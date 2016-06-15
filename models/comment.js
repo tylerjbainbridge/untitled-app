@@ -10,6 +10,9 @@ var Comment = mongoose.Schema({
     fit_id: String,
 
     body: String
+},
+{
+    timestamps: true
 });
 
 module.exports = mongoose.model('Comment', Comment);

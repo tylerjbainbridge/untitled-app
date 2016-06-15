@@ -17,6 +17,9 @@ var Account = new Schema({
     following: [String],
     followers: [String]
 
+},
+{
+    timestamps: true
 });
 
 Account.plugin(passportLocalMongoose);

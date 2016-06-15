@@ -34,6 +34,9 @@ var Image = mongoose.Schema({
     styles: [String],
     brands: [String],
     upload_date: String
+},
+{
+    timestamps: true
 });
 
 module.exports = mongoose.model('Image', Image);

@@ -17,6 +17,9 @@ var Fit = new Schema({
 
     image_ids: [String],
     liked_by: [String]
+},
+{
+    timestamps: true
 });
 
 
