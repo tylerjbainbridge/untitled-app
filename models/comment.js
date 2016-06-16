@@ -2,6 +2,8 @@ var mongoose = require('mongoose'),
     Schema = mongoose.Schema,
     shortid = require('shortid');
 
+mongoose.Promise = require('bluebird');
+
 var Comment = mongoose.Schema({
     user_id: String,
     username: String,

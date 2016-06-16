@@ -10,38 +10,18 @@ const express = require('express'),
     validator = require('validator');
 
 exports.getUserProfile = (req, res)=>{
-    let username = req.params.username;
-
-    Account.findByUsername(username, (err, usr) => {
-        if(usr){
-
-            let query = {
-                user_id: usr._id
-            };
-
-            Image.find(query, (err, imgs)=>{
-                if(err){
-                    return res.send(usr);
-                }else if(imgs){
-
-                    return res.send(
-                        {
-                            user: usr,
-                            images: imgs
-                        }
-
-                    )
-                }else{
-                    return res.send(usr);
-                }
-
-            });
-
-        }else if(err){
-            res.send(err);
-        }else{
-            res.send('Did not find user.')
-        }
+    Account.findByUsername(req.params.username)
+    .then((usr)=>{
+        Image.find({user_id: usr._id})
+        .then((imgs)=>{
+            return res.send({user: usr, images: imgs});
+        })
+        .catch((err)=>{
+            return res.send(err);
+        });
+    })
+    .catch((err)=>{
+        return res.send(err);
     });
 };
 
@@ -49,11 +29,11 @@ exports.getUserFeed = (req, res) => {
     let pageLength = 5;
 
     /**
+     * Aggregate can't be promisefyed.
      * First retrieve all the images from the user's req.user follows.
      * Second sort them in all in descending order based on createdAt date.
      * Third only return the first $pageLength images.
      */
-
     Image.aggregate([
         {$match: { user_id: { $in: req.user.following}}},
         {$sort: {createdAt: -1}},
@@ -86,18 +66,12 @@ exports.getUserFeed = (req, res) => {
 };
 
 exports.getUserImages = (req, res)=>{
-    let query = {
-      username: req.params.username
-    };
-
-    Image.find(query, (err, imgs)=>{
-        if(imgs.length > 0){
-            res.send(imgs);
-        }else if(err){
-            res.send(err);
-        }else{
-            res.send('No images to retrieve');
-        }
+    Image.find(req.params.username)
+    .then((imgs)=>{
+        res.send(imgs);
+    })
+    .catch((err)=>{
+        res.send(err);
     });
 };
 
@@ -107,20 +81,13 @@ exports.createAccount = (req, res)=>{
     var name = req.body.name;
     var password = req.body.password;
 
-
-    Account.register(
-        new Account({
-            username: username,
-            name: name
-        }), password, (err, account) => {
-            if(err){
-                res.send(err);
-            }else if(account){
-                res.send(account);
-            }else{
-                res.send('An unknown error occurred');
-            }
-        });
+    Account.register(new Account({username: username, name: name}), password, (err, account) => {
+        if(err){
+            res.send(err);
+        }else if(account){
+            res.send(account);
+        }
+    });
 };
 
 exports.login = (req, res, next)=>{
@@ -130,13 +97,13 @@ exports.login = (req, res, next)=>{
         if (err)
             res.send(err);
         if (!user)
-            res.send('Incorrect Credentials.');
+            res.send(new Error('Incorrect Credentials.'));
 
         req.login(user, (err)=>{
-            if (err) {
+            if (err)
                 res.send(err);
-            }
-            res.send(user);
+            else
+                res.send(user);
         });
 
     })(req, res);

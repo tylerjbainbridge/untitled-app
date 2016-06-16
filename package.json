@@ -12,6 +12,7 @@
   "dependencies": {
     "async": "^2.0.0-rc.5",
     "aws-sdk": "^2.3.17",
+    "bluebird": "^3.4.0",
     "body-parser": "^1.15.1",
     "cookie-parser": "^1.4.3",
     "dotenv": "^2.0.0",
