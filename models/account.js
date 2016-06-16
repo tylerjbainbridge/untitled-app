@@ -2,6 +2,8 @@ var mongoose = require('mongoose'),
     Schema = mongoose.Schema,
     shortid = require('shortid');
 
+mongoose.Promise = require('bluebird');
+
 var passportLocalMongoose = require('passport-local-mongoose');
 
 var Account = new Schema({

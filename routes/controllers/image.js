@@ -1,3 +1,5 @@
+'use strict';
+
 var express = require('express'),
     passport = require('passport'),
     Brand = require.main.require('./models/brand'),
@@ -9,30 +11,26 @@ var express = require('express'),
     async = require('async');
 
 exports.getImage = (req, res) => {
-    var short_id = req.params.image_short;
+    let short_id = req.params.img_short;
 
-    var query = {
-        shortid: short_id
-    };
-
-    Image.findOne(query, (err, img)=>{
-        if(err){
+    Image.findOne({short_id: short_id})
+    .then((img)=>{
+        Comment.find({image_id: img.short_id})
+        .then((cmts)=>{
+            res.send({img:img, comments: cmts});
+        })
+        .catch((err)=>{
             res.send(err);
-        }else if(img){
-            var query = {
-                image_id: img.short_id
-            };
-            Comment.find(query, function(err, cmts){
-                res.send({img:img, comments: cmts});
-            });
-        }else{
-            res.send(500);
-        }
+        });
     })
+    .catch((err)=>{
+        res.send(err);
+    });
 };
 
 exports.uploadImage = (req, res)=>{
 
+    //TODO: PROMISIFY
     var processCont = new MainController();
 
     var newDate = new Date();
@@ -56,8 +54,7 @@ exports.uploadImage = (req, res)=>{
                 newStyles.push(style.trim());
             });
 
-            Image.create(
-                {
+            Image.create({
                     username: req.user.username,
                     user_id: req.user._id,
                     main: keys.keys.main,
@@ -66,18 +63,19 @@ exports.uploadImage = (req, res)=>{
                     styles: newStyles,
                     brands: newBrands,
                     upload_date: newDate
-                },
-                (err, img) => {
-                    if (err){
-                        console.log(err);
-                    }else{
-                        async.each(img.brands, addBrands.bind(null, img.brands, img.styles), (err)=>{
-                            async.each(img.styles, addStyles.bind(null, img.brands, img.styles), (err)=>{
-                                err ? res.send(err) : res.send({imgObj: img});
-                            });
-                        });
-                    }
+            })
+
+            .then((img)=>{
+                async.each(img.brands, addBrands.bind(null, img.brands, img.styles), (err1)=>{
+                    async.each(img.styles, addStyles.bind(null, img.brands, img.styles), (err)=>{
+                        err || err1 ? res.send(err || err1) : res.send({imgObj: img});
+                    });
                 });
+            })
+
+            .catch((err)=>{
+                res.send(err);
+            });
 
         }
     });
@@ -109,93 +107,91 @@ exports.testImage = (req, res)=>{
             styles: newStyles,
             brands: newBrands,
             upload_date: newDate
-        },
-        (err, img) => {
-            if (err){
-                console.log(err);
-            }else{
-                async.each(img.brands, addBrands.bind(null, img.brands, img.styles), (err)=>{
-                    async.each(img.styles, addStyles.bind(null, img.brands, img.styles), (err2)=>{
-                        err || err2 ? res.send(err||err2) : res.send({imgObj: img});
-                    });
-                });
-            }
-        })
+    })
+
+    .then((img)=>{
+        async.each(img.brands, addBrands.bind(null, img.brands, img.styles), (err)=>{
+            async.each(img.styles, addStyles.bind(null, img.brands, img.styles), (err2)=>{
+                err || err2 ? res.send(err||err2) : res.send({imgObj: img});
+            });
+        });
+    })
+
+    .catch((err)=>{
+        res.send(err);
+    });
 };
 
 exports.deleteImage = (req, res) =>{
     var processCont = new MainController();
     var image_id = req.params.image_id;
 
-    var query = {
-        _id: image_id
-    };
+    Image.findOne({_id: image_id})
+    .then((img)=>{
+        var keys = [];
 
-    Image.findOne(query, (err, img) => {
-        if(img){
-            var keys = [];
+        keys.push({Key : img.main.key});
+        keys.push({Key : img.thumbnail.key});
 
-            keys.push({Key : img.main.key});
-            keys.push({Key : img.thumbnail.key});
+        processCont.deleteImage(keys, (err, data)=>{
+            async.each(img.brands, removeBrands.bind(null, img.brands, img.styles), (err)=>{
+                async.each(img.styles, removeStyles.bind(null, img.brands, img.styles), (err2)=> {
 
-            processCont.deleteImage(keys, (err, data)=>{
-                async.each(img.brands, removeBrands.bind(null, img.brands, img.styles), (err)=>{
-                    async.each(img.styles, removeStyles.bind(null, img.brands, img.styles), (err2)=> {
+                    if(err){
+                        return res.send(err);
+                    }else if(err2){
+                        return res.send(err);
+                    }
 
-                        if(err){
-                            return res.send(err);
-                        }else if(err2){
-                            return res.send(err);
-                        }
-
-                        img.brands.forEach((brand)=> {
-                            if (typeof req.user.brands[brand] != 'undefined' && req.user.brands[brand] > 0)
-                                req.user.brands[brand]--;
-                        });
-
-                        img.styles.forEach((style)=> {
-                            if (typeof req.user.styles[style] != 'undefined' && req.user.styles[style] > 0)
-                                req.user.styles[style]--;
-                        });
-
-                        req.user.markModified('styles');
-                        req.user.markModified('brands');
-
-                        req.user.save((err)=> {
-                            if (!err) {
-                                err ? res.send(err) : res.send({imgObj: data});
-                            }
-                        });
-
-                        img.remove();
+                    img.brands.forEach((brand)=> {
+                        if (typeof req.user.brands[brand] != 'undefined' && req.user.brands[brand] > 0)
+                            req.user.brands[brand]--;
                     });
+
+                    img.styles.forEach((style)=> {
+                        if (typeof req.user.styles[style] != 'undefined' && req.user.styles[style] > 0)
+                            req.user.styles[style]--;
+                    });
+
+                    req.user.markModified('styles');
+                    req.user.markModified('brands');
+
+                    req.user.save((err)=> {
+                        if (!err) {
+                            err ? res.send(err) : res.send({imgObj: data});
+                        }
+                    });
+
+                    img.remove();
                 });
             });
-        }else{
-            res.sendStatus(500);
-        }
-    });
+        });
+    })
+
+    .catch((err)=>{
+        res.send(err);
+    })
 
 };
 
 exports.deleteAllImages = (req, res)=>{
     var processCont = new MainController();
 
-    Image.find({user_id: req.user._id}, (err, imgs)=>{
-        if(err){
-            res.send(err);
-        }else{
-            var keys = [];
+    Image.find({user_id: req.user._id})
+    .then((imgs)=>{
+        var keys = [];
 
-            imgs.forEach((img)=>{
-                keys.push({Key: img.main.key});
-                keys.push({Key: img.thumbnail.key});
-            });
+        imgs.forEach((img)=>{
+            keys.push({Key: img.main.key});
+            keys.push({Key: img.thumbnail.key});
+        });
 
-            processCont.deleteImage(keys, (err, data)=>{
-                res.send(data);
-            });
-        }
+        processCont.deleteImage(keys, (err, data)=>{
+            res.send(data);
+        });
+    })
+    .catch((err)=>{
+        res.send(err);
     });
 };
 
@@ -212,34 +208,36 @@ function addBrands(brands, styles, brandName, callback){
         upsert: true, 'new': true
     };
 
-    Brand.findOneAndUpdate(query, action, upsert, (err, brand)=> {
-        if(err)
-            callback(err);
-        else{
-            if(typeof brand.brands_paired_with == 'undefined')
-                brand.brands_paired_with = {};
-            if(typeof brand.styles == 'undefined')
-                brand.styles = {};
+    Brand.findOneAndUpdate(query, action, upsert)
+    .then((brand)=>{
 
-            brands.forEach((brand_name)=>{
-                if(brand_name != brandName)
-                    brand.brands_paired_with[brand_name] ? brand.brands_paired_with[brand_name]++ : brand.brands_paired_with[brand_name] = 1;
-            });
+        if(!brand.brands_paired_with)
+            brand.brands_paired_with = {};
+        if(!brand.styles)
+            brand.styles = {};
 
-            styles.forEach((style_name)=>{
-                brand.styles[style_name] ? brand.styles[style_name]++ : brand.styles[style_name] = 1;
-            });
+        brands.forEach((brand_name)=>{
+            if(brand_name != brandName)
+                brand.brands_paired_with[brand_name] ? brand.brands_paired_with[brand_name]++ : brand.brands_paired_with[brand_name] = 1;
+        });
 
-            brand.markModified('brands_paired_with');
-            brand.markModified('styles');
+        styles.forEach((style_name)=>{
+            brand.styles[style_name] ? brand.styles[style_name]++ : brand.styles[style_name] = 1;
+        });
 
-            brand.save((err)=>{
-                if(err)
-                    callback(err);
-                else
-                    callback(err, brand);
-            });
-        }
+        brand.markModified('brands_paired_with');
+        brand.markModified('styles');
+
+        brand.save((err)=>{
+            if(err)
+                callback(err);
+            else
+                callback(err, brand);
+        });
+
+    })
+    .catch((err)=>{
+        callback(err);
     })
 }
 
@@ -256,35 +254,37 @@ function addStyles(brands, styles, styleName, callback){
         upsert: true, 'new': true
     };
 
-    Style.findOneAndUpdate(query, action, upsert, (err, style)=> {
-        if(err)
-            callback(err);
-        else{
-            if(typeof style.brands_paired_with == 'undefined')
-                style.brands_paired_with = {};
-            if(typeof style.styles == 'undefined')
-                style.styles = {};
+    Style.findOneAndUpdate(query, action, upsert)
+    .then((style)=>{
 
-            brands.forEach((brand_name)=>{
-                style.brands_paired_with[brand_name] ? style.brands_paired_with[brand_name]++ : style.brands_paired_with[brand_name] = 1;
-            });
+        if(!style.brands_paired_with)
+            style.brands_paired_with = {};
+        if(!style.styles)
+            style.styles = {};
 
-            styles.forEach((style_name)=>{
-                if(style_name != styleName)
-                    style.styles[style_name] ? style.styles[style_name]++ : style.styles[style_name] = 1;
-            });
+        brands.forEach((brand_name)=>{
+            style.brands_paired_with[brand_name] ? style.brands_paired_with[brand_name]++ : style.brands_paired_with[brand_name] = 1;
+        });
 
-            style.markModified('brands_paired_with');
-            style.markModified('styles');
+        styles.forEach((style_name)=>{
+            if(style_name != styleName)
+                style.styles[style_name] ? style.styles[style_name]++ : style.styles[style_name] = 1;
+        });
 
-            style.save((err)=>{
-                if(err)
-                    callback(err);
-                else
-                    callback(err, style);
-            });
-        }
+        style.markModified('brands_paired_with');
+        style.markModified('styles');
+
+        style.save((err)=>{
+            if(err)
+                callback(err);
+            else
+                callback(err, style);
+        });
+
     })
+    .catch((err)=>{
+        callback(err);
+    });
 }
 
 function removeStyles(brands, styles, styleName, callback){
@@ -300,38 +300,38 @@ function removeStyles(brands, styles, styleName, callback){
         upsert: true, 'new': true
     };
 
-    Style.findOneAndUpdate(query, action, upsert, (err, style)=> {
-        if(err)
-            callback(err);
-        else{
+    Style.findOneAndUpdate(query, action, upsert)
+    .then((style)=>{
 
-            if(style.amount < 0)
-                style.amount = 0;
-            if(typeof style.brands_paired_with == 'undefined')
-                style.brands_paired_with = {};
-            if(typeof style.styles == 'undefined')
-                style.styles = {};
+        if(style.amount < 0)
+            style.amount = 0;
+        if(!style.brands_paired_with)
+            style.brands_paired_with = {};
+        if(!style.styles)
+            style.styles = {};
 
-            brands.forEach((brand_name)=>{
-                if(style.brands_paired_with[brand_name] > 0)
-                    style.brands_paired_with[brand_name]--;
-            });
+        brands.forEach((brand_name)=>{
+            if(style.brands_paired_with[brand_name] > 0)
+                style.brands_paired_with[brand_name]--;
+        });
 
-            styles.forEach((style_name)=>{
-                if(style_name != styleName && style.styles[style_name]>0)
-                    style.styles[style_name]--;
-            });
+        styles.forEach((style_name)=>{
+            if(style_name != styleName && style.styles[style_name]>0)
+                style.styles[style_name]--;
+        });
 
-            style.markModified('brands_paired_with');
-            style.markModified('styles');
+        style.markModified('brands_paired_with');
+        style.markModified('styles');
 
-            style.save((err)=>{
-                if(err)
-                    callback(err);
-                else
-                    callback(err, style);
-            });
-        }
+        style.save((err)=>{
+            if(err)
+                callback(err);
+            else
+                callback(err, style);
+        });
+    })
+    .catch((err)=>{
+        callback(err);
     })
 }
 
@@ -348,36 +348,36 @@ function removeBrands(brands, styles, brandName, callback){
         upsert: true, 'new': true
     };
 
-    Brand.findOneAndUpdate(query, action, upsert, (err, brand)=> {
-        if(err)
-            callback(err);
-        else{
-            if(brand.amount < 0)
-                brand.amount = 0;
-            if(typeof brand.brands_paired_with == 'undefined')
-                brand.brands_paired_with = {};
-            if(typeof brand.styles == 'undefined')
-                brand.styles = {};
+    Brand.findOneAndUpdate(query, action, upsert)
+    .then((brand)=>{
+        if(brand.amount < 0)
+            brand.amount = 0;
+        if(!brand.brands_paired_with)
+            brand.brands_paired_with = {};
+        if(!brand.styles)
+            brand.styles = {};
 
-            brands.forEach((brand_name)=>{
-                if(brand_name != brandName && brand.brands_paired_with[brand_name] > 0)
-                    brand.brands_paired_with[brand_name]--;
-            });
+        brands.forEach((brand_name)=>{
+            if(brand_name != brandName && brand.brands_paired_with[brand_name] > 0)
+                brand.brands_paired_with[brand_name]--;
+        });
 
-            styles.forEach((style_name)=>{
-                if(brand.styles[style_name]>0)
-                    brand.styles[style_name]--;
-            });
+        styles.forEach((style_name)=>{
+            if(brand.styles[style_name]>0)
+                brand.styles[style_name]--;
+        });
 
-            brand.markModified('brands_paired_with');
-            brand.markModified('styles');
+        brand.markModified('brands_paired_with');
+        brand.markModified('styles');
 
-            brand.save((err)=>{
-                if(err)
-                    callback(err);
-                else
-                    callback(err, brand);
-            });
-        }
+        brand.save((err)=>{
+            if(err)
+                callback(err);
+            else
+                callback(err, brand);
+        });
     })
+    .catch((err)=>{
+        callback(err);
+    });
 }
