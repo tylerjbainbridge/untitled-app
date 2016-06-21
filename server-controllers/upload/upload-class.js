@@ -1,5 +1,6 @@
 var lwip = require('lwip'),
     fs = require('fs'),
+    sharp = require('sharp'),
     exif = require('exif-parser');
 
 function UploadController(name, fileBuff){
@@ -49,8 +50,8 @@ UploadController.prototype.getFileName = function(){
     return this.fileName;
 };
 
-UploadController.prototype.getFileHeight = function(){
-    return this.height;
+UploadController.prototype.getFileDimensions = function(){
+    return {height: this.height, width: this.width};
 };
 
 UploadController.prototype.getFileWidth = function(){
@@ -183,28 +184,32 @@ UploadController.prototype.fixOrientation = function(image){
     return image;
 };
 
+//UploadController.prototype.compressImage = function(type, callback){
+//    var that = this;
+//
+//    this.lwip.open(this.fileBuffer, this.extension, function(err, image){
+//        if(err){
+//            callback(err);
+//        }else{
+//            that.width = image.width();
+//            that.height = image.height();
+//            image = that.fixOrientation(image);
+//
+//            if(type == 'thumbnail'){
+//                image.resize(that.width/that.thumbnailCompression, that.height/that.thumbnailCompression);
+//            }else{
+//                image.resize(that.width/that.primaryCompression, that.height/that.primaryCompression);
+//            }
+//
+//            image.toBuffer(that.extension, function(err, buff){
+//                callback(err, buff);
+//            })
+//        }
+//    });
+//
+//};
+
 UploadController.prototype.compressImage = function(type, callback){
-    var that = this;
-
-    this.lwip.open(this.fileBuffer, this.extension, function(err, image){
-        if(err){
-            callback(err);
-        }else{
-            that.width = image.width();
-            that.height = image.height();
-            image = that.fixOrientation(image);
-
-            if(type == 'thumbnail'){
-                image.resize(that.width/that.thumbnailCompression, that.height/that.thumbnailCompression);
-            }else{
-                image.resize(that.width/that.primaryCompression, that.height/that.primaryCompression);
-            }
-
-            image.toBuffer(that.extension, function(err, buff){
-                callback(err, buff);
-            })
-        }
-    });
 
 };
 

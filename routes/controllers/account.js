@@ -122,3 +122,7 @@ exports.newFit = (req, res) => {
         }
     });
 };
+
+exports.getSuggestions = (req, res)=>{
+
+};
